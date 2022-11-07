@@ -1,0 +1,651 @@
+---
+title: "Exploratory Data Analysis - Top Hits Spotify Dataset"
+author: "Agel Herdin Jonathan Sinaga"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    theme: spacelab
+    highlight: zenburn
+    css: style.css
+    number_sections: true
+    toc: true
+    toc_float:
+      collapsed: false
+    df_print: paged
+---
+
+# Latar Belakang
+
+Kumpulan data yang berisi statistik audio dari 2000 lagu teratas di Spotify. Data berisi sekitar 18 kolom yang masing-masing menggambarkan trek dan kualitasnya.
+
+# Set Up
+
+```{r}
+library(ggplot2)
+```
+
+# Data Wrangling
+
+## Masukkan Data
+
+Pertama kita masukkan data **songs_normalize.csv** terlebih dahulu. 
+
+```{r}
+top_hits <- read.csv("data_input/songs_normalize.csv")
+```
+
+Setelah itu kita melakukan inspeksi data untuk mengetahui jumlah baris, kolom dan nama kolom.
+
+```{r}
+head(top_hits)
+```
+
+```{r}
+tail(top_hits)
+```
+
+```{r}
+dim(top_hits)
+```
+
+```{r}
+names(top_hits)
+```
+
+## Modifikasi Tipe Data
+
+Kita melakukan `str()` untuk melihat tipe data. Untuk memudahkan exploratory kita mengubah tipe data yang masih belum sesuai. Pada kolom `artist`, `year`, `key`, `mode`, `genre` kita ubah menjadi tipe data factor. Sedangkan untuk kolom `explicit` kita ubah menjadi tipe data logical.
+
+```{r}
+str(top_hits)
+```
+
+```{r}
+top_hits$artist <- as.factor(top_hits$artist)
+top_hits$explicit <- as.logical(top_hits$explicit)
+top_hits$year <- as.factor(top_hits$year)
+top_hits$key <- as.factor(top_hits$key)
+top_hits$mode <- as.factor(top_hits$mode)
+top_hits$genre <- as.factor(top_hits$genre)
+
+str(top_hits)
+```
+
+## Cek Missing Value
+
+Untuk melihat apakah ada missing value di tiap kolom kita dapat menggunakan `is.na()` atau `anyNA()`.
+
+```{r}
+colSums(is.na(top_hits))
+```
+
+```{r}
+anyNA(top_hits)
+```
+
+## Hapus Duplicate Rows
+
+Dalam kasus ini kita perlu menghapus baris yang bersifat duplikat. Kolom `song` dijadikan acuan dan mengambil baris yang pertama. Sebelum itu kita mengurutkannya terlebih dahulu berdasarkan `popularity`.
+
+```{r}
+top_hits2 <- top_hits[order(top_hits$popularity, decreasing = TRUE),]
+top_hits3 <- top_hits2[match(unique(top_hits2$song), top_hits2$song), ]
+nrow(top_hits3)
+```
+
+
+## Menambah dan Mengubah Kolom
+
+Kita perlu menambah beberapa kolom baru untuk exploratory yang lebih mendalam. Kolom pertama adalah `popularity_range` yang berisi kategori range dari popularity lagu tersebut. Hal ini bertujuan untuk memudahkan exploratory dengan metode sampling pada data paling atas, data paling bawah, dan data yang berada di tengah.
+
+```{r}
+convert_popularity <- function(y){ 
+    if(y >= 91 & y <= 100)
+      {
+      y <- "91-100" 
+    }
+    else 
+      if(y >= 81 & y <= 90)
+      {
+      y <- "81-90" 
+    }
+    else 
+      if(y >= 71 & y <= 80)
+      {
+      y <- "71-80" 
+    }
+    else 
+      if(y >= 61 & y <= 70)
+      {
+      y <- "61-70" 
+    }
+    else 
+      if(y >= 51 & y <= 60)
+      {
+      y <- "51-60" 
+    }
+    else 
+      if(y >= 41 & y <= 50)
+      {
+      y <- "41-50" 
+    }
+    else 
+      if(y >= 31 & y <= 40)
+      {
+      y <- "31-40" 
+    }
+    else 
+      if(y >= 21 & y <= 30)
+      {
+      y <- "21-30" 
+    }
+    else 
+      if(y >= 11 & y <= 20)
+      {
+      y <- "11-20" 
+    }
+    else
+      {
+      y <- "0-10" 
+    }  
+}
+
+top_hits3$popularity_range <- sapply(X = top_hits3$popularity, 
+                                    FUN = convert_popularity)
+```
+
+
+
+Selain itu membuat kolom `key_name`, `tempo_category`, dan `year_range` untuk mempermudah kita dalam menggali insight.
+
+```{r}
+convert_key <- function(y){ 
+    if(y %in% 0)
+      {
+      y <- "C" 
+    }
+    else 
+      if(y %in% 1)
+      {
+      y <- "C#/Db" 
+    }
+    else 
+      if(y %in% 2)
+      {
+      y <- "D" 
+    }
+    else 
+      if(y %in% 3)
+      {
+      y <- "D#/Eb" 
+    }
+    else 
+      if(y %in% 4)
+      {
+      y <- "E" 
+    }
+    else 
+      if(y %in% 5)
+      {
+      y <- "F" 
+    }
+    else 
+      if(y %in% 6)
+      {
+      y <- "F#/Gb" 
+    }
+    else 
+      if(y %in% 7)
+      {
+      y <- "G" 
+    }
+    else 
+      if(y %in% 8)
+      {
+      y <- "G#/Ab" 
+    }
+    else 
+      if(y %in% 9)
+      {
+      y <- "A" 
+    }  
+    else 
+      if(y %in% 10)
+      {
+      y <- "A#/Bb" 
+    }
+    else 
+      if(y %in% 11)
+      {
+      y <- "B" 
+      }
+    else 
+      if(y %in% 12)
+      {
+      y <- "C'" 
+    }
+    else
+      {
+      y <- "NA" 
+    }  
+}
+
+top_hits3$key_name <- sapply(X = top_hits3$key, 
+                             FUN = convert_key)
+```
+
+
+
+```{r}
+convert_tempo <- function(y){ 
+    if(y >= 20 & y <= 77)
+      {
+      y <- "Lambat" 
+    }
+    else 
+      if(y >= 86 & y <= 109)
+      {
+      y <- "Sedang" 
+    }
+    else
+      {
+      y <- "Cepat" 
+    }  
+}
+
+top_hits3$tempo_category <- sapply(X = top_hits3$tempo, 
+                                 FUN = convert_tempo)
+```
+
+
+
+```{r}
+convert_year <- function(y){ 
+    if(y %in% 1998:2002)
+      {
+      y <- "1998-2002" 
+    }
+    else 
+      if(y %in% 2003:2007)
+      {
+      y <- "2003-2007" 
+    }
+    else 
+      if(y %in% 2008:2012)
+      {
+      y <- "2008-2012" 
+    }
+    else 
+      if(y %in% 2013:2017)
+      {
+      y <- "2013-2017" 
+    }
+    else 
+      {
+      y <- "2018-2020" 
+    }
+}
+
+top_hits3$year_range <- sapply(X = top_hits3$year, 
+                              FUN = convert_year)
+```
+
+
+
+Yang terakhir kita perlu mengubah satuan durasi lagu yang sebelumnya dalam milidetik menjadi detik.
+
+```{r}
+top_hits3$duration_ms <- top_hits3$duration_ms / 1000
+top_hits4 <- dplyr::rename(top_hits3, duration_s = duration_ms)
+```
+
+## Data Explanation
+
+```{r}
+top_hits4
+```
+
+**Penjelasan yang didapat dari proses wrangling data di atas adalah:**
+  <br> 1. Dataset **top_hits** memiliki 2000 baris dan 18 kolom.
+  <br> 2. Tipe data pada kolom `artist`, `year`, `key`, `mode`, `genre` diubah menjadi factor dan kolom        `explicit` menjadi logical.
+  <br> 3. Dataset tidak memiliki missing value.
+  <br> 4. Jumlah baris setelah data duplikat dihapus menjadi 1879.
+  <br> 5. Kolom `popularity_range` ditambah untuk mempermudah pengambilan sampling pada data atas, data        bawah, dan data di tengah. Kolom `key_name`, `tempo_category`, dan `year_range`, dan `duration_s`        dibuat untuk mempermudah kita dalam menggali insight.
+
+# Data Exploratory
+
+```{r}
+explicit <- data.frame(table(top_hits4[c('explicit', 'popularity_range')]))
+
+ggplot(data=explicit, aes(x=popularity_range, y=Freq, fill=explicit)) +
+      geom_bar(stat="identity", position=position_dodge())+
+      ggtitle('Jumlah Lagu Berdasarkan Explicit di Tiap Popularity Range')+
+      xlab('Popularity Range')+ylab('Jumlah Lagu')+
+      labs(fill='Explicit')+
+      theme_minimal()
+```
+
+```{r}
+key_name <- data.frame(table(top_hits4[c('key_name', 'popularity_range')]))
+key_name_major <- subset(key_name, key_name %in% c('C', 'D', 'E', 'F', 'G', 'A', 'B'))
+key_name_minor <- subset(key_name, key_name %in% c('C#/Db', 'D#/Eb', 'F#/Gb', 'G#/Ab', 'A#/Bb'))
+```
+
+```{r}
+ggplot(data=key_name_major, aes(x=popularity_range, y=Freq, fill=key_name)) +
+      geom_bar(stat="identity", position=position_dodge())+
+      ggtitle('Jumlah Lagu Berdasarkan Nada Dasar Major di Tiap Popularity Range')+
+      xlab('Popularity Range')+ylab('Jumlah Lagu')+
+      labs(fill='Nada Dasar')+
+      theme_minimal()
+```
+
+```{r}
+ggplot(data=key_name_minor, aes(x=popularity_range, y=Freq, fill=key_name)) +
+      geom_bar(stat="identity", position=position_dodge())+
+      ggtitle('Jumlah Lagu Berdasarkan Nada Dasar Minor di Tiap Popularity Range')+
+      xlab('Popularity Range')+ylab('Jumlah Lagu')+
+      labs(fill='Nada Dasar')+
+      theme_minimal()
+```
+
+
+
+
+```{r}
+pie_chart1 <- data.frame(prop.table(table(top_hits4$year_range))*100)
+
+mycols <- c("#42f55a", "#42f5e6", "#ecf542", "#f56f42", "#f56f42")
+  
+ggplot(pie_chart1, aes(x = "", y = Freq, fill = Var1)) +
+    geom_bar(width = 1, stat = "identity") +
+    coord_polar("y", start = 0)+
+    scale_fill_manual(values = mycols) +
+    theme_void() 
+```
+
+```{r}
+pie_chart2 <- data.frame(prop.table(table(top_hits4$tempo_category))*100)
+
+mycols <- c("#42f55a", "#42f5e6", "#ecf542")
+  
+ggplot(pie_chart2, aes(x = "", y = Freq, fill = Var1)) +
+    geom_bar(width = 1, stat = "identity", color = "white") +
+    coord_polar("y", start = 0)+
+    scale_fill_manual(values = mycols) +
+    theme_void() 
+```
+
+## Max
+
+```{r}
+tophits_max <- subset(top_hits4, popularity_range %in% '81-90')
+summary(tophits_max)
+```
+
+```{r}
+genre_max <- tophits_max[c('genre', 'tempo_category')]
+genre_max2 <- data.frame(table(genre_max))
+```
+
+```{r}
+genre_cepat_max <- subset(genre_max2, tempo_category %in% 'Cepat')
+genre_cepat_max2 <- genre_cepat_max[order(genre_cepat_max$Freq, decreasing = TRUE),]
+head(genre_cepat_max2)
+```
+
+```{r}
+genre_sedang_max <- subset(genre_max2, tempo_category %in% 'Sedang')
+genre_sedang_max2 <- genre_sedang_max[order(genre_sedang_max$Freq, decreasing = TRUE),]
+head(genre_sedang_max2)
+```
+
+```{r}
+genre_lambat_max <- subset(genre_max2, tempo_category %in% 'Lambat')
+genre_lambat_max2 <- genre_lambat_max[order(genre_lambat_max$Freq, decreasing = TRUE),]
+head(genre_lambat_max2)
+```
+
+
+```{r}
+genre_max3 <- tophits_max[c('genre', 'year_range')]
+genre_max4 <- data.frame(table(genre_max3))
+```
+
+
+```{r}
+year_range_max <- subset(genre_max4, year_range %in% '2018-2020')
+year_range_max2 <- year_range_max[order(year_range_max$Freq, decreasing = TRUE),]
+head(year_range_max2)
+```
+
+```{r}
+year_range_max3 <- subset(genre_max4, year_range %in% '2013-2017')
+year_range_max4 <- year_range_max3[order(year_range_max3$Freq, decreasing = TRUE),]
+head(year_range_max4)
+```
+
+```{r}
+year_range_max5 <- subset(genre_max4, year_range %in% '2008-2012')
+year_range_max6 <- year_range_max5[order(year_range_max5$Freq, decreasing = TRUE),]
+head(year_range_max6)
+```
+
+
+```{r}
+year_range_max7 <- subset(genre_max4, year_range %in% '2003-2007')
+year_range_max8 <- year_range_max7[order(year_range_max7$Freq, decreasing = TRUE),]
+head(year_range_max8)
+```
+
+
+```{r}
+year_range_max9 <- subset(genre_max4, year_range %in% '1998-2002')
+year_range_max10 <- year_range_max9[order(year_range_max9$Freq, decreasing = TRUE),]
+head(year_range_max10)
+```
+
+
+
+
+```{r}
+duration_s_max <- aggregate(duration_s ~ year_range, tophits_max, mean)
+head(duration_s_max)
+```
+
+```{r}
+danceability_max <- aggregate(danceability ~ year_range, tophits_max, mean)
+head(danceability_max)
+```
+
+
+
+```{r}
+plot(x = tophits_max$popularity,
+     y = tophits_max$danceability,
+     pch = 16)
+```
+
+```{r}
+plot(x = tophits_max$popularity,
+     y = tophits_max$instrumentalness,
+     pch = 16)
+```
+
+## Median
+
+```{r}
+tophits_median <- subset(top_hits4, popularity_range %in% c('51-60', '41-50'))
+summary(tophits_median)
+```
+```{r}
+genre_median <- tophits_median[c('genre', 'tempo_category')]
+genre_median2 <- data.frame(table(genre_median))
+```
+
+```{r}
+genre_cepat_median <- subset(genre_median2, tempo_category %in% 'Cepat')
+genre_cepat_median2 <- genre_cepat_median[order(genre_cepat_median$Freq, decreasing = TRUE),]
+head(genre_cepat_median2)
+```
+
+```{r}
+genre_sedang_median <- subset(genre_median2, tempo_category %in% 'Sedang')
+genre_sedang_median2 <- genre_sedang_median[order(genre_sedang_median$Freq, decreasing = TRUE),]
+head(genre_sedang_median2)
+```
+
+```{r}
+genre_lambat_median <- subset(genre_median2, tempo_category %in% 'Lambat')
+genre_lambat_median2 <- genre_lambat_median[order(genre_lambat_median$Freq, decreasing = TRUE),]
+head(genre_lambat_median2)
+```
+
+```{r}
+genre_median3 <- tophits_median[c('genre', 'year_range')]
+genre_median4 <- data.frame(table(genre_median3))
+```
+
+
+```{r}
+year_range_median <- subset(genre_median4, year_range %in% '2018-2020')
+year_range_median2 <- year_range_median[order(year_range_median$Freq, decreasing = TRUE),]
+head(year_range_median2)
+```
+
+```{r}
+year_range_median3 <- subset(genre_median4, year_range %in% '2013-2017')
+year_range_median4 <- year_range_median3[order(year_range_median3$Freq, decreasing = TRUE),]
+head(year_range_median4)
+```
+
+```{r}
+year_range_median5 <- subset(genre_median4, year_range %in% '2008-2012')
+year_range_median6 <- year_range_median5[order(year_range_median5$Freq, decreasing = TRUE),]
+head(year_range_median6)
+```
+
+```{r}
+year_range_median7 <- subset(genre_median4, year_range %in% '2003-2007')
+year_range_median8 <- year_range_median7[order(year_range_median7$Freq, decreasing = TRUE),]
+head(year_range_median8)
+```
+
+
+```{r}
+year_range_median9 <- subset(genre_median4, year_range %in% '1998-2002')
+year_range_median10 <- year_range_median9[order(year_range_median9$Freq, decreasing = TRUE),]
+head(year_range_median10)
+```
+
+```{r}
+duration_s_median <- aggregate(duration_s ~ year_range, tophits_median, mean)
+head(duration_s_median)
+```
+
+```{r}
+danceability_median <- aggregate(danceability ~ year_range, tophits_median, mean)
+head(danceability_median)
+```
+
+```{r}
+plot(x = tophits_median$popularity,
+     y = tophits_median$danceability,
+     pch = 16)
+```
+
+```{r}
+plot(x = tophits_median$popularity,
+     y = tophits_median$instrumentalness,
+     pch = 16)
+```
+
+## Min
+
+```{r}
+tophits_min <- subset(top_hits4, popularity_range %in% '0-10')
+summary(tophits_min)
+```
+
+```{r}
+genre_min <- tophits_min[c('genre', 'tempo_category')]
+genre_min2 <- data.frame(table(genre_min))
+```
+
+```{r}
+genre_cepat_min <- subset(genre_min2, tempo_category %in% 'Cepat')
+genre_cepat_min2 <- genre_cepat_min[order(genre_cepat_min$Freq, decreasing = TRUE),]
+head(genre_cepat_min2)
+```
+
+```{r}
+genre_sedang_min <- subset(genre_min2, tempo_category %in% 'Sedang')
+genre_sedang_min2 <- genre_sedang_min[order(genre_sedang_min$Freq, decreasing = TRUE),]
+head(genre_sedang_min2)
+```
+
+```{r}
+genre_lambat_min <- subset(genre_min2, tempo_category %in% 'Lambat')
+genre_lambat_min2 <- genre_lambat_min[order(genre_lambat_min$Freq, decreasing = TRUE),]
+head(genre_lambat_min2)
+```
+
+```{r}
+genre_min3 <- tophits_min[c('genre', 'year_range')]
+genre_min4 <- data.frame(table(genre_min3))
+```
+
+
+```{r}
+year_range_min <- subset(genre_min4, year_range %in% '2018-2020')
+year_range_min2 <- year_range_min[order(year_range_min$Freq, decreasing = TRUE),]
+head(year_range_min2)
+```
+
+```{r}
+year_range_min3 <- subset(genre_min4, year_range %in% '2013-2017')
+year_range_min4 <- year_range_min3[order(year_range_min3$Freq, decreasing = TRUE),]
+head(year_range_min4)
+```
+
+```{r}
+year_range_min5 <- subset(genre_min4, year_range %in% '2008-2012')
+year_range_min6 <- year_range_min5[order(year_range_min5$Freq, decreasing = TRUE),]
+head(year_range_min6)
+```
+
+```{r}
+year_range_min7 <- subset(genre_min4, year_range %in% '2003-2007')
+year_range_min8 <- year_range_min7[order(year_range_min7$Freq, decreasing = TRUE),]
+head(year_range_min8)
+```
+
+
+```{r}
+year_range_min9 <- subset(genre_min4, year_range %in% '1998-2002')
+year_range_min10 <- year_range_min9[order(year_range_min9$Freq, decreasing = TRUE),]
+head(year_range_min10)
+```
+
+```{r}
+duration_s_min <- aggregate(duration_s ~ year_range, tophits_min, mean)
+head(duration_s_min)
+```
+
+```{r}
+danceability_min <- aggregate(danceability ~ year_range, tophits_min, mean)
+head(danceability_min)
+```
+
+```{r}
+plot(x = tophits_min$popularity,
+     y = tophits_min$danceability,
+     pch = 16)
+```
+
+```{r}
+plot(x = tophits_min$popularity,
+     y = tophits_min$instrumentalness,
+     pch = 16)
+```
+

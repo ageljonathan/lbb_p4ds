@@ -1,0 +1,21 @@
+#header:after {
+    content: " ";
+    display: block;
+    background-image: url(Spotify_Logo_RGB_Green.png);
+    background-size: 140px;
+    background-repeat: no-repeat;
+    height: 60px;
+    margin-top: 2%;
+    margin-bottom: 2%;
+}
+
+.list-group-item.active, .list-group-item.active:hover, .list-group-item.active:focus {
+  z-index: 2;
+  color: #ffffff;
+  background-color: #303030;
+  border-color: #0764a1;
+}
+
+.tocify {
+	border: 1px solid #cccccc;
+}
